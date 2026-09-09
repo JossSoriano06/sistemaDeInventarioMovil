@@ -64,9 +64,14 @@ export default function Login({ navigation }) {
         <Text style={styles.recordarmeTexto}>Recordarme</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.boton}>
-        <Text style={styles.botonTexto}>Iniciar sesión</Text>
-      </TouchableOpacity>
+      <TouchableOpacity
+      style={styles.boton}
+      onPress={() => navigation.navigate('Productos')}
+      >
+      <Text style={styles.botonTexto}>
+        Iniciar sesión
+      </Text>
+    </TouchableOpacity>
 
       <TouchableOpacity>
         <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
