@@ -1,65 +1,114 @@
-import React, { useState } from 'react';
-import {View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet,} from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert} from 'react-native';
 
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Ionicons,
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
 
+import {obtenerProductos, actualizarProducto, eliminarProducto} from './service/productoService';
+
+
 export default function Productos({ navigation }) {
-
   const [buscar, setBuscar] = useState('');
+  const [productos, setProductos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
 
-  const productos = [
-    {
-      id: '1',
-      nombre: 'Torta de Chocolate',
-      precio: 35.00,
-      stock: 10,
-      icono: 'cake-variant',
-    },
-    {
-      id: '2',
-      nombre: 'Cheesecake de Fresa',
-      precio: 30.00,
-      stock: 8,
-      icono: 'cake',
-    },
-    {
-      id: '3',
-      nombre: 'Cupcake de Vainilla',
-      precio: 8.00,
-      stock: 25,
-      icono: 'cake',
-    },
-    {
-      id: '4',
-      nombre: 'Donas',
-      precio: 6.00,
-      stock: 40,
-      icono: 'cookie',
-    },
-    {
-      id: '5',
-      nombre: 'Pie de Limón',
-      precio: 25.00,
-      stock: 12,
-      icono: 'cake-variant',
-    },
-    {
-      id: '6',
-      nombre: 'Brownie',
-      precio: 7.00,
-      stock: 18,
-      icono: 'food',
-    },
-  ];
+  useFocusEffect(
+  useCallback(() => {
+    cargarProductos();
+  }, [])
+);
+
+  async function cargarProductos() {
+    try {
+      setCargando(true);
+      setError('');
+
+      const datos = await obtenerProductos();
+      setProductos(datos);
+    } catch (e) {
+      setError(
+        'No se pudieron cargar los productos. Verifica el backend y la conexión.'
+      );
+    } finally {
+      setCargando(false);
+    }
+  }
 
   const productosFiltrados = productos.filter((producto) =>
     producto.nombre
       .toLowerCase()
       .includes(buscar.toLowerCase())
   );
+
+
+
+//accion de editar y eliminar producto
+    
+function mostrarOpciones(producto) {
+  Alert.alert(
+    producto.nombre,
+    '¿Qué deseas hacer con este producto?',
+    [
+      {
+        text: 'Cancelar',
+        style: 'cancel',
+      },
+      {
+        text: 'Editar',
+        onPress: () => {
+          navigation.navigate('EditarProducto', {
+            producto,
+          });
+        },
+      },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: () => confirmarEliminacion(producto),
+      },
+    ]
+  );
+}
+
+function confirmarEliminacion(producto) {
+  Alert.alert(
+    'Eliminar producto',
+    `¿Deseas eliminar "${producto.nombre}"?`,
+    [
+      {
+        text: 'Cancelar',
+        style: 'cancel',
+      },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await eliminarProducto(producto.id);
+            await cargarProductos();
+
+            Alert.alert(
+              'Producto eliminado',
+              'El producto se eliminó correctamente.'
+            );
+          } catch (error) {
+            Alert.alert(
+              'Error',
+              'No se pudo eliminar el producto.'
+            );
+          }
+        },
+      },
+    ]
+  );
+}
+
+
+
 
   const renderProducto = ({ item }) => {
 
@@ -90,7 +139,10 @@ export default function Productos({ navigation }) {
 
         </View>
 
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => mostrarOpciones(item)}
+          hitSlop={10}
+        >
           <Ionicons
             name="ellipsis-vertical"
             size={20}
@@ -109,26 +161,31 @@ export default function Productos({ navigation }) {
 
       <View style={styles.header}>
 
-        <TouchableOpacity
-          onPress={() => navigation?.goBack()}
-        >
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color="#FFFFFF"
-          />
-        </TouchableOpacity>
+      <Text style={styles.titulo}>
+        Productos
+      </Text>
 
-        <Text style={styles.titulo}>
-          Productos
+      <TouchableOpacity
+        style={styles.botonCerrar}
+        onPress={() => navigation.navigate('Login')}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name="log-out-outline"
+          size={20}
+          color="#8B4A2B"
+        />
+
+        <Text style={styles.textoCerrar}>
+          Cerrar sesión
         </Text>
+      </TouchableOpacity>
 
-        <View style={{ width: 24 }} />
+    </View>
 
-      </View>
+  
 
 
-    {/* BARRA DE BÚSQUEDA */}
 
       <View style={styles.buscarContainer}>
 
@@ -157,24 +214,56 @@ export default function Productos({ navigation }) {
       </View>
 
 
-      {/* lista de productos */}
-
-      <FlatList
-        data={productosFiltrados}
-        keyExtractor={(item) => item.id}
-        renderItem={renderProducto}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.lista}
-      />
+      
 
 
-      {/* Agregar producto */}
+
+        {cargando ? (
+          <View style={styles.estado}>
+            <ActivityIndicator size="large" color="#8B4A2B" />
+            <Text style={styles.mensajeEstado}>
+              Cargando productos...
+            </Text>
+          </View>
+        ) : error ? (
+          <View style={styles.estado}>
+            <Text style={styles.mensajeError}>{error}</Text>
+
+            <TouchableOpacity
+              style={styles.botonReintentar}
+              onPress={cargarProductos}
+            >
+              <Text style={styles.textoReintentar}>
+                Reintentar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={productosFiltrados}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={renderProducto}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.lista}
+            ListEmptyComponent={
+              <Text style={styles.mensajeEstado}>
+                {buscar
+                  ? 'No se encontraron productos.'
+                  : 'Todavía no hay productos registrados.'}
+              </Text>
+            }
+          />
+        )}
+
+
+
+      
+
+
 
       <TouchableOpacity
         style={styles.botonAgregar}
-        onPress={() => {
-          console.log('Nuevo producto');
-        }}
+        onPress={() => navigation.navigate('NuevoProducto')}
       >
         <Ionicons
           name="add"
@@ -201,21 +290,22 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    height: 65,
-    backgroundColor: '#8B4A2B',
+  height: 80,
+  backgroundColor: '#8B4A2B',
 
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  flexDirection: 'row',
+  alignItems: 'center',
 
-    paddingHorizontal: 20,
-  },
+  
+  paddingTop: 30,
+},
 
   titulo: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
+  color: '#FFFFFF',
+  fontSize: 20,
+  fontWeight: 'bold',
+  paddingLeft: 25,
+},
 
   buscarContainer: {
     flexDirection: 'row',
@@ -388,4 +478,64 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
+
+  estado: {
+  flex: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 24,
+},
+
+mensajeEstado: {
+  color: '#6F5A4A',
+  fontSize: 14,
+  textAlign: 'center',
+  marginTop: 12,
+},
+
+mensajeError: {
+  color: '#B42318',
+  textAlign: 'center',
+  fontSize: 14,
+},
+
+botonReintentar: {
+  backgroundColor: '#8B4A2B',
+  paddingHorizontal: 18,
+  paddingVertical: 10,
+  borderRadius: 10,
+  marginTop: 14,
+},
+
+textoReintentar: {
+  color: '#FFFFFF',
+  fontWeight: 'bold',
+},
+  
+ botonCerrar: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  backgroundColor: '#FFFFFF',
+
+  paddingHorizontal: 10,
+  paddingVertical: 8,
+
+  borderRadius: 10,
+
+  borderWidth: 1,
+  borderColor: '#EAD9C9',
+
+  marginLeft: 'auto',
+},
+
+textoCerrar: {
+  marginLeft: 5,
+
+  color: '#8B4A2B',
+
+  fontSize: 12,
+  fontWeight: '600',
+},
 });

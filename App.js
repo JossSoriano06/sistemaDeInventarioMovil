@@ -5,6 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import Login from './login';
 import Productos from './Productos';
+import NuevoProducto from './NuevoProducto';
+import EditarProducto from './EditarProducto';
 
 const Stack = createNativeStackNavigator();
 
@@ -28,6 +30,18 @@ export default function App() {
         <Stack.Screen
           name="Productos"
           component={Productos}
+        />
+
+        <Stack.Screen
+          name="EditarProducto"
+          component={EditarProducto}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="NuevoProducto"
+          component={NuevoProducto}
+          options={{ headerShown: false }}
         />
 
       </Stack.Navigator>
